@@ -94,18 +94,20 @@ LOCAL void ICACHE_FLASH_ATTR webserver_recv(void *arg, char *data, unsigned shor
                         DEVICE_NAME, SERIAL_NUMBER);
       espconn_sent(ptrespconn, buffer, os_strlen(buffer));
       return;
-    } else if(os_strstr(data, "/upnp/control/basicevent1")) {
+    } else if(os_strstr(data, "basicevent1")) {
       
       char message[100];
       if(os_strstr(data, "<BinaryState>1</BinaryState>")) {
-        os_printf(message, "Warp drive turn on");
+        os_sprintf(message, "Warp drive turn on");
+        gpio_output_set(BIT2, 0, BIT2, 0);
       } else {
-        os_printf(message, "Warp drive turn off");
+        os_sprintf(message, "Warp drive turn off");
+        gpio_output_set(0, BIT2, BIT2, 0);
       }
       
       
       os_sprintf(buffer, "HTTP/1.1 200 OK\r\n"
-                         "CONTENT-TYPE: text/xml charset=\"utf-8\"\r\n"
+                         "CONTENT-TYPE: text/plain charset=\"utf-8\"\r\n"
                          "SERVER: Unspecified, UPnP/1.0, Unspecified\r\n"
                          "connection: close\r\n"
                          "LAST-MODIFIED: Sat, 01 Jan 2000 00:00:00 GMT\r\n"
@@ -115,7 +117,7 @@ LOCAL void ICACHE_FLASH_ATTR webserver_recv(void *arg, char *data, unsigned shor
       
     } else {
       os_sprintf(buffer, "HTTP/1.1 200 OK\r\n"
-                         "Content-Type: text/xml\r\n"
+                         "Content-Type: text/plain\r\n"
                          "SERVER: Unspecified, UPnP/1.0, Unspecified\r\n"
                          "connection: close\r\n"
                          "LAST-MODIFIED: Sat, 01 Jan 2000 00:00:00 GMT\r\n"
@@ -184,4 +186,7 @@ void ICACHE_FLASH_ATTR serverInit() {
   
   espconn_regist_connectcb(&conn2, webserver_listen);
   espconn_accept(&conn2);
+  
+  
+  gpio_output_set(BIT2, 0, BIT2, 0);
 }
