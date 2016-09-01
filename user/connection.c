@@ -31,6 +31,13 @@ LOCAL esp_udp udp1;
 LOCAL struct espconn conn2;
 LOCAL esp_tcp tcp1;
 
+const char returnState[] = "<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\r\n"
+"    <s:Body>\r\n"
+"        <u:GetBinaryStateResponse xmlns:u=\"urn:Belkin:service:basicevent:1\">\r\n"
+"            <BinaryState>%d</BinaryState>\r\n"
+"        </u:GetBinaryStateResponse>\r\n"
+"    </s:Body>\r\n"
+"</s:Envelope>\r\n";
 
 static void ICACHE_FLASH_ATTR recvCb(void *arg, char *data, unsigned short len) {
   struct espconn *conn=(struct espconn *)arg;
@@ -45,7 +52,7 @@ static void ICACHE_FLASH_ATTR recvCb(void *arg, char *data, unsigned short len) 
 
   wifi_get_ip_info(STATION_IF, &ipconfig);
    
-   if(os_strstr(data,"M-SEARCH")) {
+   if(os_strstr(data,"M-SEARCH") && os_strstr(data, "Belkin")) {     
      if (espconn_get_connection_info(&conn1, &premot, 0) != ESPCONN_OK)
           return;
       os_memcpy(conn1.proto.udp->remote_ip, premot->remote_ip, 4);
@@ -60,8 +67,9 @@ static void ICACHE_FLASH_ATTR recvCb(void *arg, char *data, unsigned short len) 
                           "OPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n"
                           "01-NLS: %s\r\n"
                           "SERVER: Unspecified, UPnP/1.0, Unspecified\r\n"
+                          "X-User-Agent: redsonic\r\n"
                           "ST: urn:Belkin:device:**\r\n"
-                          "USN: uuid:Socket-1_0-%s\r\n\r\n", IP2STR(&ipconfig.ip), UUID, SERIAL_NUMBER);
+                          "USN: uuid:Socket-1_0-%s::urn:Belkin:device:controllee:1\r\n\r\n", IP2STR(&ipconfig.ip), UUID, SERIAL_NUMBER);
       
       espconn_send(&conn1, buffer, strlen(buffer));
    }
@@ -74,13 +82,8 @@ LOCAL void ICACHE_FLASH_ATTR webserver_recv(void *arg, char *data, unsigned shor
     char buffer[BUFFERLEN];
     if(os_strstr(data,"setup.xml")) {
       
-      os_sprintf(buffer, "HTTP/1.1 200 OK\r\n"
-                         "Content-Type: text/xml\r\n"
-                         "SERVER: Unspecified, UPnP/1.0, Unspecified\r\n"
-                         "connection: close\r\n"
-                         "LAST-MODIFIED: Sat, 01 Jan 2000 00:00:00 GMT\r\n"
-                         "\r\n"
-                        "<?xml version=\"1.0\"?>\r\n"
+      char xml_message[500];
+      const char setup_xml[] = "<?xml version=\"1.0\"?>\r\n"
                         "<root>\r\n"
                         "  <device>\r\n"
                         "    <deviceType>urn:FadorTest:device:controllee:1</deviceType>\r\n"
@@ -90,40 +93,51 @@ LOCAL void ICACHE_FLASH_ATTR webserver_recv(void *arg, char *data, unsigned shor
                         "    <modelNumber>3.1415</modelNumber>\r\n"
                         "    <UDN>uuid:Socket-1_0-%s</UDN>\r\n"
                         "  </device>\r\n"
-                        "</root>", 
-                        DEVICE_NAME, SERIAL_NUMBER);
-      espconn_sent(ptrespconn, buffer, os_strlen(buffer));
+                        "</root>";
+      os_sprintf(xml_message,setup_xml, DEVICE_NAME, SERIAL_NUMBER);
+      os_sprintf(buffer, "HTTP/1.1 200 OK\r\n"
+                         "Content-Type: text/xml\r\n"
+                         "Content-Length: %d\r\n"
+                         "Server: Unspecified, UPnP/1.0, Unspecified\r\n"
+                         "connection: close\r\n"
+                         "Last-Modified: Sat, 01 Jan 2000 00:00:00 GMT\r\n"
+                         "\r\n"
+                         "%s", os_strlen(xml_message), xml_message); 
+                  
+      espconn_send(ptrespconn, buffer, os_strlen(buffer));
       return;
     } else if(os_strstr(data, "basicevent1")) {
       
-      char message[100];
+      char message[500];
       if(os_strstr(data, "<BinaryState>1</BinaryState>")) {
-        os_sprintf(message, "Warp drive turn on");
+        os_sprintf(message, returnState, 1);
         gpio_output_set(BIT2, 0, BIT2, 0);
       } else {
-        os_sprintf(message, "Warp drive turn off");
+        os_sprintf(message, returnState, 0);
         gpio_output_set(0, BIT2, BIT2, 0);
       }
       
       
       os_sprintf(buffer, "HTTP/1.1 200 OK\r\n"
-                         "CONTENT-TYPE: text/plain charset=\"utf-8\"\r\n"
-                         "SERVER: Unspecified, UPnP/1.0, Unspecified\r\n"
+                         "Content-Type: text/plain charset=\"utf-8\"\r\n"
+                         "Content-Length: %d\r\n"
+                         "Server: Unspecified, UPnP/1.0, Unspecified\r\n"
                          "connection: close\r\n"
-                         "LAST-MODIFIED: Sat, 01 Jan 2000 00:00:00 GMT\r\n"
+                         "Last-Modified: Sat, 01 Jan 2000 00:00:00 GMT\r\n"
                          "\r\n"
-                         "%s", message);                        
-      espconn_sent(ptrespconn, buffer, os_strlen(buffer));
+                         "%s", os_strlen(message), message);                        
+      espconn_send(ptrespconn, buffer, os_strlen(buffer));
       
     } else {
       os_sprintf(buffer, "HTTP/1.1 200 OK\r\n"
                          "Content-Type: text/plain\r\n"
-                         "SERVER: Unspecified, UPnP/1.0, Unspecified\r\n"
+                         "Content-Length: 2\r\n"
+                         "Server: Unspecified, UPnP/1.0, Unspecified\r\n"
                          "connection: close\r\n"
-                         "LAST-MODIFIED: Sat, 01 Jan 2000 00:00:00 GMT\r\n"
+                         "Last-Modified: Sat, 01 Jan 2000 00:00:00 GMT\r\n"
                          "\r\n"
                          "ok");                        
-      espconn_sent(ptrespconn, buffer, os_strlen(buffer));
+      espconn_send(ptrespconn, buffer, os_strlen(buffer));
     }
     
 
