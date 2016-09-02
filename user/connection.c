@@ -111,10 +111,12 @@ LOCAL void ICACHE_FLASH_ATTR webserver_recv(void *arg, char *data, unsigned shor
       char message[500];
       if(os_strstr(data, "<BinaryState>1</BinaryState>")) {
         os_sprintf(message, returnState, 1);
-        gpio_output_set(BIT2, 0, BIT2, 0);
+        //gpio_output_set(BIT2, 0, BIT2, 0);
+        os_printf("Turning on!\n");
       } else {
         os_sprintf(message, returnState, 0);
-        gpio_output_set(0, BIT2, BIT2, 0);
+        //gpio_output_set(0, BIT2, BIT2, 0);
+        os_printf("Turning off!\n");
       }
       
       
