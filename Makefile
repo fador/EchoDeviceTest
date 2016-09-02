@@ -22,7 +22,7 @@ MODULES		= driver user
 EXTRA_INCDIR	= include ../../esp_iot_sdk_novm_unpacked/usr/xtensa/XtDevTools/install/builds/RC-2010.1-win32/lx106/xtensa-elf/include/
 
 # libraries used in this project, mainly provided by the SDK
-LIBS		= c gcc hal pp phy net80211 lwip wpa wpa2 main upgrade ssl crypto json
+LIBS		= c gcc hal pp phy net80211 lwip wpa wpa2 main upgrade crypto
 # compiler flags using during compilation of source files
 CFLAGS		= -Os -g -Wpointer-arith -Wundef -Werror -Wl,-EL -fno-inline-functions -nostdlib -mlongcalls -mtext-section-literals  -D__ets__ -DICACHE_FLASH
 
